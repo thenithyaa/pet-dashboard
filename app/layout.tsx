@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pet Mood Dashboard",
-  description: "Track and celebrate your pet's mood.",
+  title: "hello <3",
+  description: "celebrate your pet's mood.",
 };
 
 export default function RootLayout({
