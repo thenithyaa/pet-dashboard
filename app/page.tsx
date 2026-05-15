@@ -30,45 +30,54 @@ export default function PetDashboard() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isPetting, setIsPetting] = useState(false);
 
+  // Love Gauge states
   const [startedPettingOnce, setStartedPettingOnce] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const continuousRef = useRef(true);
   const currentProgressRef = useRef(0);
 
+  // Stats and Animations states
   const [loveScore, setLoveScore] = useState(0);
   const [popups, setPopups] = useState<FloatingScore[]>([]);
 
   // Audio Refs
   const purrAudio = useRef<HTMLAudioElement | null>(null);
   const bopAudio = useRef<HTMLAudioElement | null>(null);
-  const blingAudio = useRef<HTMLAudioElement | null>(null); // New bling ref
+  const blingAudio = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    // Initializing with relative paths for the public folder
     purrAudio.current = new Audio('/purr.mp3');
     purrAudio.current.loop = true;
+   
     bopAudio.current = new Audio('/bop.mp3');
-    blingAudio.current = new Audio('/bling.mp3'); // Ensure this file exists in /public
+   
+    blingAudio.current = new Audio('/bling.mp3');
+    // Preload helps reduce the lag on the first play
+    blingAudio.current.load();
   }, []);
 
   const playBop = () => {
     if (bopAudio.current) {
       bopAudio.current.currentTime = 0;
-      bopAudio.current.play().catch(() => {});
+      bopAudio.current.play().catch((err) => console.log("Audio play blocked:", err));
     }
   };
 
-  const playBling = () => {
+  const playBling = useCallback(() => {
     if (blingAudio.current) {
       blingAudio.current.currentTime = 0;
-      blingAudio.current.play().catch(() => {});
+      blingAudio.current.play().catch((err) => console.log("Bling blocked:", err));
     }
-  };
+  }, []);
 
+  // Sync state progress
   useEffect(() => {
     currentProgressRef.current = progress;
   }, [progress]);
 
+  // Manage petting status
   useEffect(() => {
     if (isPetting) {
       if (hasChosen) {
@@ -81,7 +90,12 @@ export default function PetDashboard() {
     }
   }, [isPetting, hasChosen]);
 
+  // Award Points Logic
   const awardPoints = useCallback(() => {
+    // 1. Play the Bling Sound immediately
+    playBling();
+
+    // 2. Fire Confetti
     try {
       confetti({
         particleCount: 120,
@@ -90,22 +104,22 @@ export default function PetDashboard() {
       });
     } catch (e) {}
 
+    // 3. Logic for score
     const exactRewardValue = continuousRef.current ? 10 : 5;
-
-    // Play bling sound right as the points appear
-    playBling();
-
     const uniqueId = `score-${Date.now()}-${Math.random()}`;
+   
     setPopups([{ id: uniqueId, value: exactRewardValue }]);
-  
     setLoveScore((currentScore) => currentScore + exactRewardValue);
-  }, []);
+  }, [playBling]);
 
+  // Progress Bar Engine
   useEffect(() => {
     let interval: NodeJS.Timeout;
+
     if (isPetting && startedPettingOnce && progress < 100) {
       interval = setInterval(() => {
         const currentTarget = currentProgressRef.current + (100 / 70);
+
         if (currentTarget >= 100) {
           clearInterval(interval);
           setProgress(100);
@@ -115,9 +129,11 @@ export default function PetDashboard() {
         }
       }, 100);
     }
+
     return () => clearInterval(interval);
   }, [isPetting, startedPettingOnce, awardPoints]);
 
+  // Reset logic
   useEffect(() => {
     if (progress >= 100) {
       const resetTimeout = setTimeout(() => {
@@ -128,6 +144,7 @@ export default function PetDashboard() {
     }
   }, [progress]);
 
+  // Clear popups
   useEffect(() => {
     if (popups.length > 0) {
       const cleanup = setTimeout(() => {
@@ -137,6 +154,7 @@ export default function PetDashboard() {
     }
   }, [popups]);
 
+  // Purr logic
   useEffect(() => {
     if (isPetting && petType === 'cat') {
       purrAudio.current?.play().catch(() => {});
@@ -218,6 +236,7 @@ export default function PetDashboard() {
 
   return (
     <div className={`relative flex min-h-screen flex-col items-center justify-center p-4 transition-all duration-1000 overflow-hidden ${darkMode ? 'bg-[#0a0b0e]' : 'bg-[#F2EFE7]'}`}>
+   
       {darkMode && stars.map((star) => (
         <motion.div key={`star-${star.id}`} animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 4, repeat: Infinity, delay: star.delay }} className="absolute w-1 h-1 bg-white rounded-full shadow-[0_0_8px_white]" style={{ top: star.top, left: star.left, zIndex: 0 }} />
       ))}
@@ -285,7 +304,10 @@ export default function PetDashboard() {
                         <motion.div
                           key={popup.id}
                           initial={{ opacity: 0, scale: 0.2 }}
-                          animate={{ opacity: [0, 1, 1, 0], scale: [0.2, 1.5, 1.3, 1.1] }}
+                          animate={{
+                            opacity: [0, 1, 1, 0],
+                            scale: [0.2, 1.5, 1.3, 1.1]
+                          }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 1.1, ease: "easeOut" }}
                           className="font-black text-6xl text-amber-400 select-none pointer-events-none filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)]"
@@ -354,7 +376,9 @@ export default function PetDashboard() {
               }`}
             >
               <Heart size={22} className="fill-current drop-shadow-[0_0_4px_rgba(244,63,94,0.4)] animate-pulse" />
-              <span className="font-black text-xl tracking-wider">{loveScore}</span>
+              <span className="font-black text-xl tracking-wider">
+                {loveScore}
+              </span>
             </motion.button>
           )}
         </AnimatePresence>
