@@ -12,7 +12,7 @@ interface Heart {
   y: number;
   targetX: number;
   targetY: number;
-  isGold: boolean;
+  isGold: boolean; 
   behavior: HeartBehavior;
 }
 
@@ -24,6 +24,33 @@ export default function PetDashboard() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isPetting, setIsPetting] = useState(false);
  
+  // Audio Refs
+  const purrAudio = useRef<HTMLAudioElement | null>(null);
+  const bopAudio = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    purrAudio.current = new Audio('/purr.mp3');
+    purrAudio.current.loop = true;
+    bopAudio.current = new Audio('/bop.mp3');
+  }, []);
+
+  // Play/Stop Purr logic
+  useEffect(() => {
+    if (isPetting && petType === 'cat') {
+      purrAudio.current?.play().catch(() => {});
+    } else {
+      purrAudio.current?.pause();
+      if (purrAudio.current) purrAudio.current.currentTime = 0;
+    }
+  }, [isPetting, petType]);
+
+  const playBop = () => {
+    if (bopAudio.current) {
+      bopAudio.current.currentTime = 0;
+      bopAudio.current.play().catch(() => {});
+    }
+  };
+
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const mouseXSpring = useSpring(x, { stiffness: 100, damping: 20 });
@@ -52,7 +79,6 @@ export default function PetDashboard() {
           targetX: Math.cos(angle) * radius,
           targetY: Math.sin(angle) * radius,
           isGold: Math.random() > 0.9,
-          // Fixed behavior type cast
           behavior: (Math.random() > 0.85 ? 'gravity' : 'burst') as HeartBehavior
         };
       })
@@ -69,12 +95,9 @@ export default function PetDashboard() {
       y: e.clientY - rect.top - rect.height / 2,
     });
 
-    if (isPetting) {
-      if (!movementTimer.current) {
-        spawnHeart(1); // Reduced count per tick
-        // Increased interval to 350ms to reduce heart frequency
-        movementTimer.current = setTimeout(() => { movementTimer.current = null; }, 350);
-      }
+    if (isPetting && !movementTimer.current) {
+      spawnHeart(1);
+      movementTimer.current = setTimeout(() => { movementTimer.current = null; }, 350);
     }
   };
 
@@ -86,7 +109,6 @@ export default function PetDashboard() {
   }, []);
 
   return (
-    // Background: Raw Cotton (#F2EFE7)
     <div className={`relative flex min-h-screen flex-col items-center justify-center p-4 transition-all duration-1000 overflow-hidden ${darkMode ? 'bg-[#0a0b0e]' : 'bg-[#F2EFE7]'}`}>
      
       {darkMode && stars.map((star) => (
@@ -99,11 +121,10 @@ export default function PetDashboard() {
             <motion.div key="choice" style={{ rotateX, rotateY, transformStyle: "preserve-3d" }} className="flex flex-col items-center gap-12">
               <h1 className={`text-8xl font-black italic drop-shadow-2xl ${darkMode ? 'text-slate-100' : 'text-[#7A8A71]'}`}>hi</h1>
               <div className="flex flex-col w-full gap-6">
-                {/* Sage Green Buttons (#9EB091) */}
                 <motion.button
                   whileHover={{ scale: 1.05, y: -5 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => { setPetType('cat'); setHasChosen(true); }}
+                  onClick={() => { playBop(); setPetType('cat'); setHasChosen(true); }}
                   className={`w-full py-8 rounded-[3rem] border-t-2 border-l-2 font-black text-3xl transition-all uppercase cursor-pointer backdrop-blur-2xl shadow-2xl ${darkMode ? 'bg-white/10 border-white/20 text-white' : 'bg-[#9EB091] border-white/40 text-white'}`}
                 >
                   meow
@@ -111,7 +132,7 @@ export default function PetDashboard() {
                 <motion.button
                   whileHover={{ scale: 1.05, y: -5 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => { setPetType('dog'); setHasChosen(true); }}
+                  onClick={() => { playBop(); setPetType('dog'); setHasChosen(true); }}
                   className={`w-full py-8 rounded-[3rem] border-t-2 border-l-2 font-black text-3xl transition-all uppercase cursor-pointer backdrop-blur-2xl shadow-2xl ${darkMode ? 'bg-white/10 border-white/20 text-white' : 'bg-[#9EB091] border-white/40 text-white'}`}
                 >
                   woof
@@ -126,17 +147,21 @@ export default function PetDashboard() {
               <div className="flex flex-col items-center" style={{ transform: "translateZ(100px)" }}>
                 <div
                   className="relative touch-none select-none cursor-pointer"
-                  // Desktop Support
                   onMouseDown={() => setIsPetting(true)}
                   onMouseUp={() => setIsPetting(false)}
                   onMouseLeave={() => setIsPetting(false)}
-                  // Mobile Support Added
                   onTouchStart={() => setIsPetting(true)}
                   onTouchEnd={() => setIsPetting(false)}
                 >
+                  {/* Restored Glow Backgrounds */}
                   <AnimatePresence>
                     {isPetting && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={{ opacity: 0 }} className={`absolute inset-0 blur-[100px] rounded-full ${darkMode ? 'bg-yellow-400/30' : 'bg-[#9EB091]/40'}`} />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 0.6, scale: 1.2 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className={`absolute inset-0 blur-[80px] rounded-full transition-colors duration-500 ${darkMode ? 'bg-yellow-400/40' : 'bg-pink-400/40'}`}
+                      />
                     )}
                   </AnimatePresence>
 
@@ -164,14 +189,14 @@ export default function PetDashboard() {
                     <img src={petType === 'cat' ? "/cat.png" : "/dog.png"} alt="Pet" className={`${petType === 'dog' ? 'w-72 h-72' : 'w-64 h-64'} object-contain pointer-events-none`} />
                   </motion.div>
                 </div>
-                <button onClick={() => { setHasChosen(false); setIsPetting(false); }} className={`mt-8 text-[11px] font-bold uppercase tracking-[0.5em] ${darkMode ? 'text-slate-500 hover:text-white' : 'text-[#7A8A71] hover:text-slate-900'}`}>back</button>
+                <button onClick={() => { playBop(); setHasChosen(false); setIsPetting(false); }} className={`mt-8 text-[11px] font-bold uppercase tracking-[0.5em] ${darkMode ? 'text-slate-500 hover:text-white' : 'text-[#7A8A71] hover:text-slate-900'}`}>back</button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      <button onClick={() => setDarkMode(!darkMode)} className={`fixed bottom-10 right-10 flex h-16 w-16 items-center justify-center rounded-[2rem] shadow-2xl z-30 transition-all ${darkMode ? 'bg-yellow-400 text-slate-900' : 'bg-[#9EB091] text-white'}`}>
+      <button onClick={() => { playBop(); setDarkMode(!darkMode); }} className={`fixed bottom-10 right-10 flex h-16 w-16 items-center justify-center rounded-[2rem] shadow-2xl z-30 transition-all ${darkMode ? 'bg-yellow-400 text-slate-900' : 'bg-[#9EB091] text-white'}`}>
         {darkMode ? <Sun size={28} /> : <Moon size={28} />}
       </button>
     </div>
